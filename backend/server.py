@@ -170,10 +170,13 @@ async def update_dates(task_id: int, update: DateUpdate):
     start = date_type.fromisoformat(update.start_date)
     end = date_type.fromisoformat(update.end_date)
     duration = max((end - start).days + 1, 1)
+    old_dates = f"{task['start_date']} to {task['end_date']}"
+    new_dates = f"{update.start_date} to {update.end_date}"
     await db.tasks.update_one(
         {"task_id": task_id},
         {"$set": {"start_date": update.start_date, "end_date": update.end_date, "duration": duration, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    await log_history(task_id, "date_change", "dates", old_dates, new_dates, update.update_notes or "")
     if task.get("parent_task_id") is not None:
         await rollup_progress(task["parent_task_id"])
     return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
