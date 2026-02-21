@@ -38,6 +38,7 @@ Build a progress tracking app for IIMC Amravati construction project (138 items 
 - [x] **Update history tracking** - Every progress, date, and risk change logged with timestamp and notes
 - [x] **History view** - Accessible from both Quick Update dialog and Task tree (history button per task)
 - [x] **Update notes** - Optional notes field on every progress update for audit trail
+- [x] **Floating Quick Update Button (FAB)** - Orange floating button visible on ALL pages for instant task updates without navigation. Features searchable task dropdown, progress slider, quick percentage buttons, and history view
 
 ## Prioritized Backlog
 ### P0 (Done)
