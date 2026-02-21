@@ -90,6 +90,7 @@ function App() {
           </div>
         </main>
       </div>
+      <FloatingUpdateButton />
       <Toaster position="top-right" />
     </BrowserRouter>
   );
