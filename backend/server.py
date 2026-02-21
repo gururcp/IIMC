@@ -547,10 +547,14 @@ def generate_excel_enhanced(tasks, history_data, report_meta):
         ws.cell(row=row, column=10, value="YES" if t.get("risk_flagged") else "No").border = thin_border
         ws.cell(row=row, column=11, value=t.get("risk_notes", "")).border = thin_border
 
-    # Adjust column widths
+    # Adjust column widths (skip merged cells)
+    from openpyxl.cell.cell import MergedCell
     for col in ws.columns:
-        ml = max(len(str(c.value or "")) for c in col)
-        ws.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+        # Filter out merged cells which don't have column_letter attribute
+        valid_cells = [c for c in col if not isinstance(c, MergedCell)]
+        if valid_cells:
+            ml = max(len(str(c.value or "")) for c in valid_cells)
+            ws.column_dimensions[valid_cells[0].column_letter].width = min(ml + 2, 55)
 
     # At Risk Items Sheet
     ws2 = wb.create_sheet("At Risk Items")
