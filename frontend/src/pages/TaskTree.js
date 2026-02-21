@@ -342,8 +342,8 @@ export default function TaskTree() {
       {/* History Dialog */}
       <Dialog open={!!historyDialog} onOpenChange={() => setHistoryDialog(null)}>
         <DialogContent data-testid="history-dialog">
-          <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><History className="w-4 h-4" /> Update History - #{historyDialog?.task_id}</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-600 mb-3">{historyDialog?.name}</p>
+          <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><History className="w-4 h-4" /> Update History - #{historyDialog?.task_id}</DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">{historyDialog?.name}</DialogDescription></DialogHeader>
           {loadingHistory ? (
             <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
           ) : historyData.length === 0 ? (
