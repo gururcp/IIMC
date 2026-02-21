@@ -146,12 +146,17 @@ async def update_progress(task_id: int, update: ProgressUpdate):
         raise HTTPException(404, "Task not found")
     if not task.get("is_leaf"):
         raise HTTPException(400, "Can only update leaf task progress")
+    old_progress = task["progress"]
+    old_status = task["status"]
     progress = max(0, min(100, round(update.progress, 1)))
     status = determine_status(progress, task)
     await db.tasks.update_one(
         {"task_id": task_id},
         {"$set": {"progress": progress, "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    await log_history(task_id, "progress_update", "progress", old_progress, progress, update.update_notes or "")
+    if old_status != status:
+        await log_history(task_id, "status_change", "status", old_status, status, "Auto-derived from progress")
     if task.get("parent_task_id") is not None:
         await rollup_progress(task["parent_task_id"])
     return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
