@@ -39,15 +39,17 @@ Build a progress tracking app for IIMC Amravati construction project (138 items 
 - [x] **History view** - Accessible from both Quick Update dialog and Task tree (history button per task)
 - [x] **Update notes** - Optional notes field on every progress update for audit trail
 - [x] **Floating Quick Update Button (FAB)** - Orange floating button visible on ALL pages for instant task updates without navigation. Features searchable task dropdown, progress slider, quick percentage buttons, and history view
+- [x] **Enhanced Reports with Filtering** - Report Type selection (Full/Daily/Weekly/Monthly), auto-calculated date ranges, Phase filter, Status filter, Include Update History toggle, Excel (.xlsx) and PDF export with multiple sheets (Summary, At Risk, Delayed, History)
 
 ## Prioritized Backlog
 ### P0 (Done)
 - All 138 tasks seeded with correct hierarchy
 - Progress update + rollup
 - Gantt chart + Task tree + Dashboard + Reports
+- Floating Quick Update Button (FAB)
+- Enhanced Reports with date range filtering
 
 ### P1 (Next)
-- Report filtering by date range (daily/weekly/monthly period selection)
 - Dependency lines in Gantt chart
 - Bulk progress update mode (update multiple tasks at once)
 - Task notes/comments per visit
