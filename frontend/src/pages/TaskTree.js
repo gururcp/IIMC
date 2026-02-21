@@ -302,8 +302,8 @@ export default function TaskTree() {
 
       <Dialog open={!!riskDialog} onOpenChange={() => setRiskDialog(null)}>
         <DialogContent data-testid="risk-dialog">
-          <DialogHeader><DialogTitle className="font-heading">Risk Assessment - #{riskDialog?.task_id}</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-600 mb-3">{riskDialog?.name}</p>
+          <DialogHeader><DialogTitle className="font-heading">Risk Assessment - #{riskDialog?.task_id}</DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">{riskDialog?.name}</DialogDescription></DialogHeader>
           <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={riskFlag} onChange={e => setRiskFlag(e.target.checked)} className="w-4 h-4 rounded border-slate-300" />
