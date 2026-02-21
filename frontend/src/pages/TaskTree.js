@@ -199,6 +199,22 @@ export default function TaskTree() {
     } catch { toast.error("Failed to update dates"); }
   };
 
+  const openHistoryDialog = (t) => {
+    setHistoryDialog(t);
+    setLoadingHistory(true);
+    axios.get(`${API}/tasks/${t.task_id}/history`).then(r => { setHistoryData(r.data); setLoadingHistory(false); }).catch(() => setLoadingHistory(false));
+  };
+
+  const formatTs = (ts) => {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const diff = Date.now() - d;
+    if (diff < 60000) return "Just now";
+    if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+    return d.toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  };
+
   const filtered = phase === "all" ? tasks : tasks.filter(t => t.phase === phase || t.task_id === 1);
   const visible = flattenTree(filtered, expanded, search);
 
