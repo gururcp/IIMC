@@ -121,6 +121,9 @@ export default function TaskTree() {
   const [riskNotes, setRiskNotes] = useState("");
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
+  const [historyDialog, setHistoryDialog] = useState(null);
+  const [historyData, setHistoryData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchTasks = useCallback(() => {
     setLoading(true);
