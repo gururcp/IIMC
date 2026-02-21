@@ -119,6 +119,7 @@ function UpdateDialog({ task, open, onClose, onSaved }) {
             <span className="text-slate-400 font-mono text-sm mr-2">#{task.task_id}</span>
             {task.name}
           </DialogTitle>
+          <DialogDescription>Update progress and add notes for this task</DialogDescription>
         </DialogHeader>
 
         {!showHistory ? (
