@@ -691,6 +691,174 @@ def generate_pdf(tasks):
                              headers={"Content-Disposition": f"attachment; filename=IIMC_Report_{datetime.now().strftime('%Y%m%d')}.pdf"})
 
 
+def generate_pdf_enhanced(tasks, history_data, report_meta):
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Title
+    elements.append(Paragraph("IIMC Amravati - Project Progress Report", styles['Title']))
+    
+    # Report metadata
+    report_type_label = {"full": "Full Report", "daily": "Daily Report", "weekly": "Weekly Report", "monthly": "Monthly Report"}
+    meta_text = f"<b>Report Type:</b> {report_type_label.get(report_meta.get('report_type', 'full'), 'Full Report')}"
+    
+    if report_meta.get("start_date") or report_meta.get("end_date"):
+        date_range = f"{report_meta.get('start_date', 'Start')} to {report_meta.get('end_date', 'Present')}"
+        meta_text += f" | <b>Period:</b> {date_range}"
+    
+    if report_meta.get("phase") and report_meta.get("phase") != "all":
+        meta_text += f" | <b>Phase:</b> {report_meta['phase'].replace('_', ' ').title()}"
+    
+    if report_meta.get("status") and report_meta.get("status") != "all":
+        meta_text += f" | <b>Status:</b> {report_meta['status'].replace('_', ' ').title()}"
+    
+    elements.append(Paragraph(meta_text, styles['Normal']))
+    elements.append(Paragraph(f"<b>Generated:</b> {report_meta['generated_at']} | <b>Tasks:</b> {len(tasks)}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    # Summary Statistics
+    leaf = [t for t in tasks if t.get("is_leaf") and not t.get("exclude_from_rollup")]
+    counts = {}
+    for t in leaf:
+        counts[t["status"]] = counts.get(t["status"], 0) + 1
+
+    sd = [["Total Leaf", "Completed", "In Progress", "Delayed", "At Risk", "Not Started"],
+          [str(len(leaf)), str(counts.get("completed", 0)), str(counts.get("in_progress", 0)),
+           str(counts.get("delayed", 0)), str(counts.get("at_risk", 0)), str(counts.get("not_started", 0))]]
+    st = Table(sd, colWidths=[1.5*inch]*6)
+    st.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(st)
+    elements.append(Spacer(1, 20))
+
+    # Task List
+    if tasks:
+        elements.append(Paragraph("<b>Task Details</b>", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        
+        td = [["ID", "Task", "Phase", "Status", "Progress", "Start", "End"]]
+        for t in tasks:
+            td.append([str(t["task_id"]), ("  " * t["level"] + t["name"])[:45], t["phase"].replace("_", " ").title()[:15],
+                        t["status"].replace("_", " ").title(), f"{t['progress']}%", t["start_date"], t["end_date"]])
+
+        tt = Table(td, colWidths=[0.4*inch, 3.2*inch, 1.2*inch, 0.9*inch, 0.7*inch, 0.8*inch, 0.8*inch])
+        tstyle = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+        ]
+        scm = {"completed": '#10B981', "in_progress": '#3B82F6', "delayed": '#EF4444', "at_risk": '#F59E0B', "not_started": '#94A3B8'}
+        for i, t in enumerate(tasks, 1):
+            c = scm.get(t["status"], '#94A3B8')
+            tstyle.append(('BACKGROUND', (3, i), (3, i), colors.HexColor(c)))
+            tstyle.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+        tt.setStyle(TableStyle(tstyle))
+        elements.append(tt)
+
+    # At Risk Items
+    at_risk = [t for t in tasks if t.get("risk_flagged")]
+    if at_risk:
+        elements.append(PageBreak())
+        elements.append(Paragraph("<b>At Risk Items</b>", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        
+        rd = [["ID", "Task Name", "Progress", "End Date", "Risk Notes"]]
+        for t in at_risk:
+            rd.append([str(t["task_id"]), t["name"][:40], f"{t['progress']}%", t["end_date"], (t.get("risk_notes", "") or "")[:30]])
+        
+        rt = Table(rd, colWidths=[0.5*inch, 3*inch, 0.8*inch, 1*inch, 3*inch])
+        rt.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F59E0B')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        elements.append(rt)
+
+    # Delayed Items
+    delayed = [t for t in tasks if t["status"] == "delayed"]
+    if delayed:
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("<b>Delayed Items</b>", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        
+        dd = [["ID", "Task Name", "Progress", "End Date"]]
+        for t in delayed:
+            dd.append([str(t["task_id"]), t["name"][:50], f"{t['progress']}%", t["end_date"]])
+        
+        dt = Table(dd, colWidths=[0.5*inch, 5*inch, 0.8*inch, 1*inch])
+        dt.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#EF4444')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        elements.append(dt)
+
+    # Update History
+    if history_data:
+        elements.append(PageBreak())
+        elements.append(Paragraph("<b>Update History</b>", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        
+        hd = [["Timestamp", "Task", "Action", "Change", "Notes"]]
+        for h in history_data[:50]:  # Limit to 50 entries in PDF
+            change = f"{h.get('old_value', '')} → {h.get('new_value', '')}"
+            hd.append([
+                h.get("timestamp", "")[:16],
+                f"#{h.get('task_id', '')} {h.get('task_name', '')[:25]}",
+                h.get("action", "").replace("_", " ").title()[:15],
+                change[:20],
+                (h.get("notes", "") or "")[:25]
+            ])
+        
+        ht = Table(hd, colWidths=[1.2*inch, 2.5*inch, 1.2*inch, 1.5*inch, 2*inch])
+        ht.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6366F1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+        ]))
+        elements.append(ht)
+
+    doc.build(elements)
+    buf.seek(0)
+    
+    # Generate filename
+    report_type = report_meta.get("report_type", "full")
+    date_suffix = datetime.now().strftime('%Y%m%d')
+    if report_meta.get("start_date"):
+        date_suffix = report_meta["start_date"].replace("-", "")
+    
+    filename = f"IIMC_{report_type.title()}_Report_{date_suffix}.pdf"
+    
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
 @api_router.post("/tasks/reseed")
 async def reseed_tasks():
     await db.tasks.drop()
