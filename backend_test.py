@@ -339,6 +339,13 @@ class ConstructOSAPITester:
         self.test_risk_flagging()
         self.test_date_update()
         
+        # New history tracking tests
+        self.test_progress_update_with_notes()
+        self.test_task_history_endpoint()
+        self.test_recent_history_endpoint()
+        self.test_date_change_history_logging()
+        self.test_risk_change_history_logging()
+        
         # Report generation
         self.test_excel_report_generation()
         self.test_pdf_report_generation()
