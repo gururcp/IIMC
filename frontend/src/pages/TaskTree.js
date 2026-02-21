@@ -280,12 +280,15 @@ export default function TaskTree() {
                     <td className="py-2 px-2 text-xs text-slate-500 whitespace-nowrap">{task.start_date}</td>
                     <td className="py-2 px-2 text-xs text-slate-500 whitespace-nowrap">{task.end_date}</td>
                     <td className="py-2 px-2">
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openRiskDialog(task)} className={`p-1 rounded ${task.risk_flagged ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:text-amber-500"}`} data-testid={`risk-btn-${task.task_id}`}>
                           {task.risk_flagged ? <AlertTriangle className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
                         </button>
                         <button onClick={() => openDateDialog(task)} className="p-1 rounded text-slate-400 hover:text-blue-500" data-testid={`date-btn-${task.task_id}`}>
                           <Calendar className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => openHistoryDialog(task)} className="p-1 rounded text-slate-400 hover:text-violet-500" data-testid={`history-btn-${task.task_id}`}>
+                          <History className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
