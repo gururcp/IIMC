@@ -64,6 +64,8 @@ async def startup_event():
     await db.tasks.create_index("task_id", unique=True)
     await db.tasks.create_index("parent_task_id")
     await db.tasks.create_index("phase")
+    await db.task_history.create_index("task_id")
+    await db.task_history.create_index("timestamp")
     logger.info("ConstructOS API started")
 
 
