@@ -1,88 +1,400 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
+from fastapi import FastAPI, APIRouter, Query, HTTPException
+from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import logging
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, timezone, date as date_type
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
-
+from dotenv import load_dotenv
+import os, logging, io
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class ProgressUpdate(BaseModel):
+    progress: float
 
-# Add your routes to the router instead of directly to app
+class DateUpdate(BaseModel):
+    start_date: str
+    end_date: str
+
+class RiskUpdate(BaseModel):
+    risk_flagged: bool
+    risk_notes: Optional[str] = ""
+
+class NotesUpdate(BaseModel):
+    notes: str
+
+
+@app.on_event("startup")
+async def startup_event():
+    count = await db.tasks.count_documents({})
+    if count == 0:
+        from seed_data import get_seed_tasks
+        tasks = get_seed_tasks()
+        await db.tasks.insert_many(tasks)
+        logger.info(f"Seeded {len(tasks)} tasks")
+    await db.tasks.create_index("task_id", unique=True)
+    await db.tasks.create_index("parent_task_id")
+    await db.tasks.create_index("phase")
+    logger.info("ConstructOS API started")
+
+
+def determine_status(progress, task):
+    if task.get("risk_flagged") and progress < 100:
+        return "at_risk"
+    if progress == 0:
+        return "not_started"
+    if progress >= 100:
+        return "completed"
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if today > task.get("end_date", "9999-12-31"):
+        return "delayed"
+    return "in_progress"
+
+
+async def rollup_progress(parent_task_id):
+    children = await db.tasks.find({"parent_task_id": parent_task_id}, {"_id": 0}).to_list(None)
+    if not children:
+        return
+    effective = [c for c in children if not c.get("exclude_from_rollup", False)]
+    if not effective:
+        return
+    total_dur = sum(c["duration"] for c in effective)
+    if total_dur == 0:
+        progress = sum(c["progress"] for c in effective) / len(effective)
+    else:
+        progress = sum(c["progress"] * c["duration"] for c in effective) / total_dur
+    progress = round(min(progress, 100), 1)
+
+    if progress == 0:
+        status = "not_started"
+    elif progress >= 100:
+        status = "completed"
+    else:
+        status = "in_progress"
+
+    parent = await db.tasks.find_one({"task_id": parent_task_id}, {"_id": 0})
+    if not parent:
+        return
+
+    has_delayed = any(c["status"] == "delayed" for c in effective)
+    has_risk = any(c["status"] == "at_risk" or c.get("risk_flagged") for c in effective)
+
+    if parent.get("risk_flagged") and progress < 100:
+        status = "at_risk"
+    elif has_delayed and progress < 100:
+        status = "delayed"
+    elif has_risk and progress < 100:
+        status = "at_risk"
+
+    await db.tasks.update_one(
+        {"task_id": parent_task_id},
+        {"$set": {"progress": progress, "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if parent.get("parent_task_id") is not None:
+        await rollup_progress(parent["parent_task_id"])
+
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "ConstructOS API - IIMC Amravati Project Tracker"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/tasks")
+async def get_tasks(phase: Optional[str] = None):
+    query = {}
+    if phase and phase != "all":
+        query["phase"] = phase
+    tasks = await db.tasks.find(query, {"_id": 0}).sort("task_id", 1).to_list(None)
+    return tasks
 
-# Include the router in the main app
+
+@api_router.put("/tasks/{task_id}/progress")
+async def update_progress(task_id: int, update: ProgressUpdate):
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if not task.get("is_leaf"):
+        raise HTTPException(400, "Can only update leaf task progress")
+    progress = max(0, min(100, round(update.progress, 1)))
+    status = determine_status(progress, task)
+    await db.tasks.update_one(
+        {"task_id": task_id},
+        {"$set": {"progress": progress, "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if task.get("parent_task_id") is not None:
+        await rollup_progress(task["parent_task_id"])
+    return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+
+
+@api_router.put("/tasks/{task_id}/dates")
+async def update_dates(task_id: int, update: DateUpdate):
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(404, "Task not found")
+    start = date_type.fromisoformat(update.start_date)
+    end = date_type.fromisoformat(update.end_date)
+    duration = max((end - start).days + 1, 1)
+    await db.tasks.update_one(
+        {"task_id": task_id},
+        {"$set": {"start_date": update.start_date, "end_date": update.end_date, "duration": duration, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if task.get("parent_task_id") is not None:
+        await rollup_progress(task["parent_task_id"])
+    return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+
+
+@api_router.put("/tasks/{task_id}/risk")
+async def update_risk(task_id: int, update: RiskUpdate):
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(404, "Task not found")
+    status = task["status"]
+    if update.risk_flagged and status not in ["completed"]:
+        status = "at_risk"
+    elif not update.risk_flagged and status == "at_risk":
+        status = determine_status(task["progress"], {**task, "risk_flagged": False})
+    await db.tasks.update_one(
+        {"task_id": task_id},
+        {"$set": {"risk_flagged": update.risk_flagged, "risk_notes": update.risk_notes or "", "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if task.get("parent_task_id") is not None:
+        await rollup_progress(task["parent_task_id"])
+    return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+
+
+@api_router.put("/tasks/{task_id}/notes")
+async def update_notes(task_id: int, update: NotesUpdate):
+    task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+    if not task:
+        raise HTTPException(404, "Task not found")
+    await db.tasks.update_one(
+        {"task_id": task_id},
+        {"$set": {"notes": update.notes, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
+
+
+@api_router.get("/dashboard/stats")
+async def get_dashboard_stats():
+    all_tasks = await db.tasks.find({}, {"_id": 0}).sort("task_id", 1).to_list(None)
+    root_task = next((t for t in all_tasks if t["task_id"] == 1), None)
+    overall_progress = root_task["progress"] if root_task else 0
+
+    leaf_tasks = [t for t in all_tasks if t.get("is_leaf") and not t.get("exclude_from_rollup")]
+    status_counts = {}
+    for t in leaf_tasks:
+        s = t["status"]
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    phase_map = {
+        "pre_construction": "Pre-Construction",
+        "admin_academic": "Admin & Academic Block",
+        "auditorium": "Auditorium Block",
+        "residential": "Residential Quarters & Hostels",
+        "external": "External Development"
+    }
+    phase_stats = []
+    for key, name in phase_map.items():
+        pt = [t for t in all_tasks if t["phase"] == key]
+        pl = [t for t in pt if t.get("is_leaf") and not t.get("exclude_from_rollup")]
+        td = sum(t["duration"] for t in pl)
+        prog = sum(t["progress"] * t["duration"] for t in pl) / td if td > 0 else 0
+        ps = {}
+        for t in pl:
+            ps[t["status"]] = ps.get(t["status"], 0) + 1
+        phase_stats.append({"key": key, "name": name, "progress": round(prog, 1), "total_tasks": len(pt), "leaf_tasks": len(pl), "status_counts": ps})
+
+    at_risk = [{"task_id": t["task_id"], "name": t["name"], "progress": t["progress"], "end_date": t["end_date"], "risk_notes": t.get("risk_notes", "")} for t in all_tasks if t.get("risk_flagged")]
+    delayed = [{"task_id": t["task_id"], "name": t["name"], "progress": t["progress"], "end_date": t["end_date"]} for t in all_tasks if t["status"] == "delayed"]
+
+    return {
+        "overall_progress": overall_progress,
+        "total_tasks": len(all_tasks),
+        "leaf_tasks": len(leaf_tasks),
+        "status_counts": status_counts,
+        "phase_stats": phase_stats,
+        "at_risk_items": at_risk,
+        "delayed_items": delayed,
+        "project_start": "2025-03-28",
+        "project_end": "2027-07-31"
+    }
+
+
+@api_router.get("/reports/generate")
+async def generate_report(format: str = Query("excel")):
+    all_tasks = await db.tasks.find({}, {"_id": 0}).sort("task_id", 1).to_list(None)
+    if format == "excel":
+        return generate_excel(all_tasks)
+    return generate_pdf(all_tasks)
+
+
+def generate_excel(tasks):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Project Summary"
+
+    headers = ["ID", "Task Name", "Level", "Phase", "Status", "Progress (%)", "Start Date", "End Date", "Duration", "Risk", "Risk Notes"]
+    hfont = Font(bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = hfont
+        cell.fill = hfill
+        cell.alignment = Alignment(horizontal="center")
+
+    sc_map = {"completed": "10B981", "in_progress": "3B82F6", "delayed": "EF4444", "at_risk": "F59E0B", "not_started": "94A3B8"}
+
+    for r, t in enumerate(tasks, 2):
+        ws.cell(row=r, column=1, value=t["task_id"])
+        ws.cell(row=r, column=2, value="  " * t["level"] + t["name"])
+        ws.cell(row=r, column=3, value=t["level"])
+        ws.cell(row=r, column=4, value=t["phase"].replace("_", " ").title())
+        sc = ws.cell(row=r, column=5, value=t["status"].replace("_", " ").title())
+        color = sc_map.get(t["status"], "94A3B8")
+        sc.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        sc.font = Font(color="FFFFFF", bold=True)
+        ws.cell(row=r, column=6, value=t["progress"])
+        ws.cell(row=r, column=7, value=t["start_date"])
+        ws.cell(row=r, column=8, value=t["end_date"])
+        ws.cell(row=r, column=9, value=t["duration"])
+        ws.cell(row=r, column=10, value="YES" if t.get("risk_flagged") else "No")
+        ws.cell(row=r, column=11, value=t.get("risk_notes", ""))
+
+    for col in ws.columns:
+        ml = max(len(str(c.value or "")) for c in col)
+        ws.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+
+    ws2 = wb.create_sheet("At Risk Items")
+    rh = ["ID", "Task Name", "Progress (%)", "End Date", "Risk Notes"]
+    for c, h in enumerate(rh, 1):
+        cell = ws2.cell(row=1, column=c, value=h)
+        cell.font = hfont
+        cell.fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+    for r, t in enumerate([t for t in tasks if t.get("risk_flagged")], 2):
+        ws2.cell(row=r, column=1, value=t["task_id"])
+        ws2.cell(row=r, column=2, value=t["name"])
+        ws2.cell(row=r, column=3, value=t["progress"])
+        ws2.cell(row=r, column=4, value=t["end_date"])
+        ws2.cell(row=r, column=5, value=t.get("risk_notes", ""))
+
+    ws3 = wb.create_sheet("Delayed Items")
+    for c, h in enumerate(["ID", "Task Name", "Progress (%)", "End Date"], 1):
+        cell = ws3.cell(row=1, column=c, value=h)
+        cell.font = hfont
+        cell.fill = PatternFill(start_color="EF4444", end_color="EF4444", fill_type="solid")
+    for r, t in enumerate([t for t in tasks if t["status"] == "delayed"], 2):
+        ws3.cell(row=r, column=1, value=t["task_id"])
+        ws3.cell(row=r, column=2, value=t["name"])
+        ws3.cell(row=r, column=3, value=t["progress"])
+        ws3.cell(row=r, column=4, value=t["end_date"])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename=IIMC_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"})
+
+
+def generate_pdf(tasks):
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph("IIMC Amravati - Project Progress Report", styles['Title']))
+    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    leaf = [t for t in tasks if t.get("is_leaf") and not t.get("exclude_from_rollup")]
+    counts = {}
+    for t in leaf:
+        counts[t["status"]] = counts.get(t["status"], 0) + 1
+
+    sd = [["Total", "Completed", "In Progress", "Delayed", "At Risk", "Not Started"],
+          [str(len(leaf)), str(counts.get("completed", 0)), str(counts.get("in_progress", 0)),
+           str(counts.get("delayed", 0)), str(counts.get("at_risk", 0)), str(counts.get("not_started", 0))]]
+    st = Table(sd, colWidths=[1.5*inch]*6)
+    st.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(st)
+    elements.append(Spacer(1, 20))
+
+    td = [["ID", "Task", "Phase", "Status", "Progress", "Start", "End"]]
+    for t in tasks:
+        td.append([str(t["task_id"]), ("  " * t["level"] + t["name"])[:45], t["phase"].replace("_", " ").title()[:15],
+                    t["status"].replace("_", " ").title(), f"{t['progress']}%", t["start_date"], t["end_date"]])
+
+    tt = Table(td, colWidths=[0.4*inch, 3.2*inch, 1.2*inch, 0.9*inch, 0.7*inch, 0.8*inch, 0.8*inch])
+    tstyle = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0F172A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 6),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+    ]
+    scm = {"completed": '#10B981', "in_progress": '#3B82F6', "delayed": '#EF4444', "at_risk": '#F59E0B', "not_started": '#94A3B8'}
+    for i, t in enumerate(tasks, 1):
+        c = scm.get(t["status"], '#94A3B8')
+        tstyle.append(('BACKGROUND', (3, i), (3, i), colors.HexColor(c)))
+        tstyle.append(('TEXTCOLOR', (3, i), (3, i), colors.white))
+    tt.setStyle(TableStyle(tstyle))
+    elements.append(tt)
+
+    doc.build(elements)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=IIMC_Report_{datetime.now().strftime('%Y%m%d')}.pdf"})
+
+
+@api_router.post("/tasks/reseed")
+async def reseed_tasks():
+    await db.tasks.drop()
+    from seed_data import get_seed_tasks
+    tasks = get_seed_tasks()
+    await db.tasks.insert_many(tasks)
+    await db.tasks.create_index("task_id", unique=True)
+    await db.tasks.create_index("parent_task_id")
+    await db.tasks.create_index("phase")
+    return {"message": f"Reseeded {len(tasks)} tasks"}
+
+
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+app.add_middleware(CORSMiddleware, allow_credentials=True,
+                   allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+                   allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
