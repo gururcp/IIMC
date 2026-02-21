@@ -1,34 +1,137 @@
-.App-logo {
-    height: 40vmin;
+.gantt-container {
+    display: flex;
+    height: calc(100vh - 200px);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.625rem;
+    overflow: hidden;
+    background: white;
+}
+
+.gantt-left {
+    width: 320px;
+    min-width: 320px;
+    overflow-y: auto;
+    border-right: 2px solid #e2e8f0;
+    background: #fafbfc;
+}
+
+.gantt-right {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+.gantt-row {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.8125rem;
+    transition: background-color 0.15s;
+}
+
+.gantt-row:hover {
+    background-color: #f8fafc;
+}
+
+.gantt-bar {
+    position: absolute;
+    height: 22px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    min-width: 4px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.gantt-bar:hover {
+    opacity: 0.85;
+    transform: scaleY(1.15);
+    z-index: 5;
+}
+
+.gantt-bar-progress {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px 0 0 3px;
+}
+
+.gantt-today-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #f97316;
+    z-index: 10;
     pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.gantt-today-line::before {
+    content: 'TODAY';
+    position: absolute;
+    top: -18px;
+    left: -16px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #f97316;
+    letter-spacing: 0.5px;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
+.gantt-month-header {
+    height: 32px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
-.App-link {
-    color: #61dafb;
+.tree-row {
+    transition: background-color 0.15s;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.tree-row:hover {
+    background-color: rgba(241, 245, 249, 0.7);
+}
+
+.tree-row-parent {
+    font-weight: 600;
+}
+
+.phase-card {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.phase-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
 }
