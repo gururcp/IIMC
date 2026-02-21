@@ -1,0 +1,195 @@
+{
+  "identity": {
+    "name": "ConstructOS",
+    "mission": "To bring Swiss precision and clarity to construction project management.",
+    "tone": "Professional, Reliable, High-Visibility, Structured",
+    "vibe": "Blueprint meets Modern Dashboard. Clean lines, distinct hierarchy, no ambiguity."
+  },
+  "typography": {
+    "heading_font": "Barlow Condensed",
+    "heading_fallback": "Oswald, sans-serif",
+    "body_font": "Inter",
+    "body_fallback": "system-ui, sans-serif",
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "bold": 700,
+      "black": 900
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-black tracking-tight leading-none",
+      "h2": "text-3xl md:text-4xl font-bold tracking-tight",
+      "h3": "text-2xl font-bold tracking-normal",
+      "h4": "text-xl font-semibold tracking-wide uppercase",
+      "body": "text-base leading-relaxed text-slate-600",
+      "caption": "text-sm font-medium tracking-wider uppercase text-slate-500",
+      "mono": "font-mono text-xs tracking-tight"
+    },
+    "instructions": "Import 'Barlow Condensed' from Google Fonts. Use it for all headings (h1-h4) and key metrics. Use 'Inter' for body text, inputs, and table data."
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0F172A",
+        "foreground": "#F8FAFC",
+        "desc": "Slate 900 - Deep, authoritative dark blue-grey for primary actions and headings."
+      },
+      "secondary": {
+        "DEFAULT": "#F1F5F9",
+        "foreground": "#0F172A",
+        "desc": "Slate 100 - Soft grey for secondary buttons and backgrounds."
+      },
+      "accent": {
+        "DEFAULT": "#F97316",
+        "foreground": "#FFFFFF",
+        "desc": "Safety Orange - High visibility for CTAs, active states, and critical alerts."
+      },
+      "background": {
+        "DEFAULT": "#FFFFFF",
+        "secondary": "#F8FAFC",
+        "tertiary": "#F1F5F9"
+      },
+      "surface": {
+        "DEFAULT": "#FFFFFF",
+        "glass": "rgba(255, 255, 255, 0.8)"
+      },
+      "status": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6",
+        "neutral": "#64748B"
+      },
+      "border": "#E2E8F0"
+    },
+    "gradients": {
+      "header_overlay": "linear-gradient(180deg, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0) 100%)",
+      "card_shimmer": "linear-gradient(45deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 60%)"
+    }
+  },
+  "layout_strategy": {
+    "grid_system": "Bento Grid (Mode A for Dashboard, Mode B for Data)",
+    "spacing": "Generous. Use p-6 or p-8 for cards. Gap-6 for grids.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "z_index": {
+      "toast": 50,
+      "modal": 40,
+      "dropdown": 30,
+      "sticky_header": 20,
+      "content": 10
+    }
+  },
+  "components": {
+    "global_header": {
+      "style": "Fixed height (h-16), border-b border-border bg-white/80 backdrop-blur-md sticky top-0 z-20.",
+      "elements": ["Logo (Left)", "Nav Links (Center/Left)", "Theme Toggle (Right)", "User Avatar (Right)"]
+    },
+    "sidebar": {
+      "style": "Hidden on mobile, fixed left on desktop (w-64), border-r border-border bg-slate-50/50.",
+      "elements": ["Navigation Menu", "Project Summary Mini-Widget", "Collapse Button"]
+    },
+    "cards": {
+      "default": "bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200",
+      "interactive": "cursor-pointer hover:border-accent/50 hover:ring-1 hover:ring-accent/50",
+      "metric": "p-6 flex flex-col justify-between h-full relative overflow-hidden"
+    },
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-md px-4 py-2 font-medium tracking-wide transition-all active:scale-95",
+      "accent": "bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm rounded-md px-4 py-2 font-bold uppercase tracking-wider transition-all active:scale-95",
+      "ghost": "hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-md px-3 py-2 transition-colors",
+      "outline": "border border-input bg-transparent hover:bg-slate-50 text-slate-700 rounded-md px-4 py-2 transition-colors"
+    },
+    "inputs": {
+      "default": "flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      "search": "pl-10",
+      "date_picker": "w-full justify-start text-left font-normal"
+    },
+    "tables": {
+      "header": "bg-slate-50 text-slate-500 text-xs uppercase font-semibold tracking-wider h-10 px-4 text-left align-middle",
+      "row": "border-b border-slate-100 hover:bg-slate-50/50 transition-colors h-12",
+      "cell": "p-4 align-middle text-sm text-slate-700",
+      "tree_toggle": "p-1 hover:bg-slate-200 rounded mr-2 transition-colors"
+    },
+    "badges": {
+      "success": "bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "warning": "bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "error": "bg-red-100 text-red-700 border border-red-200 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "info": "bg-sky-100 text-sky-700 border border-sky-200 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      "neutral": "bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+    },
+    "charts": {
+      "tooltip": "bg-white border border-slate-200 shadow-xl rounded-lg p-3 text-xs",
+      "grid": "stroke-slate-100 stroke-dasharray-3-3",
+      "axis": "text-slate-400 text-xs font-medium"
+    },
+    "gantt": {
+      "bar_default": "fill-sky-500 rounded-sm",
+      "bar_critical": "fill-red-500 rounded-sm",
+      "bar_completed": "fill-emerald-500 rounded-sm",
+      "connector": "stroke-slate-300 stroke-2",
+      "today_marker": "stroke-accent stroke-dasharray-2-2"
+    }
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "subtle": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+      "card": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+      "float": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
+    },
+    "borders": {
+      "standard": "1px solid #E2E8F0",
+      "active": "1px solid #F97316"
+    },
+    "animations": {
+      "hover_lift": "hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-out",
+      "fade_in": "animate-in fade-in zoom-in duration-300",
+      "slide_in_right": "animate-in slide-in-from-right duration-500"
+    }
+  },
+  "image_assets": {
+    "dashboard_hero": {
+      "url": "https://images.pexels.com/photos/9405517/pexels-photo-9405517.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Architect examining blueprints at a construction site",
+      "usage": "Hero banner or Report Cover background"
+    },
+    "empty_state": {
+      "url": "https://images.unsplash.com/photo-1768269378478-49d80e2320b7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwY29uY3JldGUlMjBzdHJ1Y3R1cmUlMjBibHVlcHJpbnR8ZW58MHx8fHwxNzcxNjU1NzU0fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Unfinished concrete building structure",
+      "usage": "Empty state or 404 page background"
+    },
+    "progress_icon": {
+      "url": "https://images.unsplash.com/photo-1653925689658-8dd32ebb0658?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHwzfHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwY29uY3JldGUlMjBzdHJ1Y3R1cmUlMjBibHVlcHJpbnR8ZW58MHx8fHwxNzcxNjU1NzU0fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Building under construction with crane",
+      "usage": "Icon or small thumbnail for 'In Progress' status"
+    }
+  },
+  "library_stack": {
+    "icons": "lucide-react",
+    "charts": "recharts",
+    "gantt": "gantt-task-react",
+    "tables": "@tanstack/react-table",
+    "forms": "react-hook-form + zod",
+    "dates": "date-fns",
+    "utils": "clsx, tailwind-merge",
+    "animations": "framer-motion",
+    "reports": "jspdf, xlsx, jspdf-autotable",
+    "toasts": "sonner"
+  },
+  "implementation_steps": [
+    "1. Setup Theme: Configure Tailwind with 'Barlow Condensed' and custom colors.",
+    "2. Components: Create atomic components (Badge, Button, Card, Input) matching the design system.",
+    "3. Layout: Build Sidebar, Header, and Main Content Shell.",
+    "4. Task Tree: Implement hierarchical table with expanding rows using Tanstack Table.",
+    "5. Gantt Integration: Integrate 'gantt-task-react' and map task data to its format.",
+    "6. Dashboard: Build Bento grid with Recharts for progress visualization.",
+    "7. Reports: Implement export logic.",
+    "8. Polish: Add micro-interactions (hover states, transitions) and 'Empty States' using the provided images."
+  ],
+  "universal_guidelines": {
+    "general": "Do not use default Shadcn styles blindly. Override radius to '0.5rem' or '0.75rem'. Increase padding everywhere. Avoid gradients on text unless specified. Use 'Inter' for all UI text, 'Barlow Condensed' for headings.",
+    "accessibility": "Ensure all text has sufficient contrast (WCAG AA). Use aria-labels for icon-only buttons. Focus states must be visible (ring-2 ring-offset-2 ring-primary).",
+    "responsive": "Mobile first. Grid columns should be 1 on mobile, 2-3 on tablet, 4 on desktop. Hide sidebar on mobile behind a hamburger menu.",
+    "testing": "Add 'data-testid' to all interactive elements."
+  }
+}
