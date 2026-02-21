@@ -8,6 +8,7 @@ import TaskTree from "@/pages/TaskTree";
 import GanttView from "@/pages/GanttView";
 import Reports from "@/pages/Reports";
 import QuickUpdate from "@/pages/QuickUpdate";
+import FloatingUpdateButton from "@/components/FloatingUpdateButton";
 
 const navLinks = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
