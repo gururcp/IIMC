@@ -47,8 +47,8 @@ Build a progress tracking app for IIMC Amravati construction project (138 items 
 - Gantt chart + Task tree + Dashboard + Reports
 
 ### P1 (Next)
+- Report filtering by date range (daily/weekly/monthly period selection)
 - Dependency lines in Gantt chart
-- Date range filter for reports (daily/weekly/monthly period filtering)
 - Bulk progress update mode (update multiple tasks at once)
 - Task notes/comments per visit
 
@@ -57,4 +57,3 @@ Build a progress tracking app for IIMC Amravati construction project (138 items 
 - Email notification for delayed tasks
 - Historical progress tracking (trend over time)
 - Export Gantt as image
-- Mobile-optimized quick update view
