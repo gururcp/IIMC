@@ -99,7 +99,7 @@ function ProgressCell({ task, onUpdate }) {
       ) : (
         <button
           onClick={() => { setVal(task.progress); setEditing(true); }}
-          className="w-14 h-7 text-xs text-center border border-transparent rounded-md hover:border-slate-300 hover:bg-slate-50 transition-colors font-medium text-slate-700"
+          className="w-14 h-7 text-xs text-center border border-orange-200 rounded-md hover:border-orange-400 hover:bg-orange-50 transition-colors font-bold text-orange-600 bg-orange-50/50"
           data-testid={`progress-btn-${task.task_id}`}
         >
           {task.progress}%
