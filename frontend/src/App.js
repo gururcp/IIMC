@@ -83,6 +83,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/tasks" element={<TaskTree />} />
               <Route path="/gantt" element={<GanttView />} />
+              <Route path="/update" element={<QuickUpdate />} />
               <Route path="/reports" element={<Reports />} />
             </Routes>
           </div>
