@@ -338,6 +338,37 @@ export default function TaskTree() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={!!historyDialog} onOpenChange={() => setHistoryDialog(null)}>
+        <DialogContent data-testid="history-dialog">
+          <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><History className="w-4 h-4" /> Update History - #{historyDialog?.task_id}</DialogTitle></DialogHeader>
+          <p className="text-sm text-slate-600 mb-3">{historyDialog?.name}</p>
+          {loadingHistory ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+          ) : historyData.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">No update history yet for this task</p>
+          ) : (
+            <div className="max-h-72 overflow-auto space-y-2">
+              {historyData.map((h, i) => (
+                <div key={i} className="border border-slate-100 rounded-lg p-3 text-xs animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <Badge variant="outline" className="text-[9px]">
+                      {h.action === "progress_update" ? "Progress" : h.action === "date_change" ? "Dates" : h.action === "risk_change" ? "Risk" : h.action === "status_change" ? "Status" : h.action}
+                    </Badge>
+                    <span className="text-slate-400">{formatTs(h.timestamp)}</span>
+                  </div>
+                  <p className="text-slate-700 font-medium">
+                    {h.old_value} <span className="text-slate-400 mx-1">&rarr;</span> {h.new_value}
+                    {h.field === "progress" && "%"}
+                  </p>
+                  {h.notes && <p className="text-slate-500 mt-1 italic">"{h.notes}"</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
