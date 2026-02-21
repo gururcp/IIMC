@@ -212,6 +212,118 @@ class ConstructOSAPITester:
             print(f"  ❌ Progress rollup failed - Parent 15 unchanged at {parent_15['progress']}%")
             return False
 
+    def test_progress_update_with_notes(self, task_id=21):
+        """Test PUT /api/tasks/{id}/progress with update_notes"""
+        print(f"\n🔍 Testing Progress Update with Notes for Task {task_id}...")
+        
+        progress_data = {
+            "progress": 65.0,
+            "update_notes": "Test update with notes from automated testing"
+        }
+        success, data = self.run_put_test(f"PUT /api/tasks/{task_id}/progress with notes", f"tasks/{task_id}/progress", progress_data)
+        if success and data.get('progress') == 65.0:
+            print(f"  ✓ Task {task_id} updated to 65.0% with notes")
+            return True, data
+        return False, {}
+
+    def test_task_history_endpoint(self, task_id=21):
+        """Test GET /api/tasks/{id}/history"""
+        print(f"\n🔍 Testing Task History Endpoint for Task {task_id}...")
+        
+        success, data = self.run_get_test(f"GET /api/tasks/{task_id}/history", f"tasks/{task_id}/history")
+        if success and isinstance(data, list):
+            print(f"  ✓ History retrieved: {len(data)} entries")
+            if len(data) > 0:
+                latest_entry = data[0]
+                required_fields = ['task_id', 'action', 'field', 'old_value', 'new_value', 'timestamp']
+                missing_fields = [f for f in required_fields if f not in latest_entry]
+                if missing_fields:
+                    print(f"  ❌ Missing required fields in history: {missing_fields}")
+                    return False, data
+                else:
+                    print(f"  ✓ History entry structure correct: action={latest_entry.get('action')}, field={latest_entry.get('field')}")
+            return True, data
+        return False, {}
+
+    def test_recent_history_endpoint(self):
+        """Test GET /api/history/recent"""
+        print(f"\n🔍 Testing Recent History Endpoint...")
+        
+        success, data = self.run_get_test("GET /api/history/recent", "history/recent?limit=10")
+        if success and isinstance(data, list):
+            print(f"  ✓ Recent history retrieved: {len(data)} entries")
+            if len(data) > 0:
+                latest_entry = data[0]
+                required_fields = ['task_id', 'task_name', 'action', 'field', 'old_value', 'new_value', 'timestamp']
+                missing_fields = [f for f in required_fields if f not in latest_entry]
+                if missing_fields:
+                    print(f"  ❌ Missing required fields in recent history: {missing_fields}")
+                    return False, data
+                else:
+                    print(f"  ✓ Recent history entry structure correct with task_name: {latest_entry.get('task_name')}")
+            return True, data
+        return False, {}
+
+    def test_date_change_history_logging(self, task_id=22):
+        """Test that date changes are logged in history"""
+        print(f"\n🔍 Testing Date Change History Logging for Task {task_id}...")
+        
+        # Get current history count
+        success, history_before = self.run_get_test(f"Get history before date change", f"tasks/{task_id}/history")
+        if not success:
+            return False
+            
+        initial_count = len(history_before)
+        
+        # Update dates
+        date_data = {
+            "start_date": "2026-03-01", 
+            "end_date": "2026-03-30",
+            "update_notes": "Testing date change history logging"
+        }
+        success, _ = self.run_put_test(f"Update dates for task {task_id}", f"tasks/{task_id}/dates", date_data)
+        if not success:
+            return False
+            
+        # Check if history was logged
+        success, history_after = self.run_get_test(f"Get history after date change", f"tasks/{task_id}/history")
+        if success and len(history_after) > initial_count:
+            print(f"  ✓ Date change logged: {initial_count} -> {len(history_after)} entries")
+            return True, history_after
+        else:
+            print(f"  ❌ Date change not logged: {initial_count} -> {len(history_after)} entries")
+            return False, {}
+
+    def test_risk_change_history_logging(self, task_id=23):
+        """Test that risk changes are logged in history"""
+        print(f"\n🔍 Testing Risk Change History Logging for Task {task_id}...")
+        
+        # Get current history count
+        success, history_before = self.run_get_test(f"Get history before risk change", f"tasks/{task_id}/history")
+        if not success:
+            return False
+            
+        initial_count = len(history_before)
+        
+        # Update risk
+        risk_data = {
+            "risk_flagged": True,
+            "risk_notes": "Testing risk change history",
+            "update_notes": "Risk flagged for automated testing"
+        }
+        success, _ = self.run_put_test(f"Update risk for task {task_id}", f"tasks/{task_id}/risk", risk_data)
+        if not success:
+            return False
+            
+        # Check if history was logged
+        success, history_after = self.run_get_test(f"Get history after risk change", f"tasks/{task_id}/history")
+        if success and len(history_after) > initial_count:
+            print(f"  ✓ Risk change logged: {initial_count} -> {len(history_after)} entries")
+            return True, history_after
+        else:
+            print(f"  ❌ Risk change not logged: {initial_count} -> {len(history_after)} entries")
+            return False, {}
+
     def run_all_tests(self):
         """Run all backend tests"""
         print("🚀 Starting ConstructOS Backend API Tests")
