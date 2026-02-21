@@ -7,7 +7,9 @@ from typing import Optional
 from datetime import datetime, timezone, date as date_type
 from pathlib import Path
 from dotenv import load_dotenv
-import os, logging, io
+import os
+import logging
+import io
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
