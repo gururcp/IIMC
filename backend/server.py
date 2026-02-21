@@ -429,6 +429,202 @@ def generate_excel(tasks):
                              headers={"Content-Disposition": f"attachment; filename=IIMC_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"})
 
 
+def generate_excel_enhanced(tasks, history_data, report_meta):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Project Summary"
+
+    hfont = Font(bold=True, color="FFFFFF", size=11)
+    hfill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC')
+    )
+
+    # Report Header
+    ws.merge_cells('A1:K1')
+    title_cell = ws.cell(row=1, column=1, value="IIMC Amravati - Project Progress Report")
+    title_cell.font = Font(bold=True, size=16, color="0F172A")
+    title_cell.alignment = Alignment(horizontal="center")
+
+    # Report Metadata
+    row = 3
+    report_type_label = {"full": "Full Report", "daily": "Daily Report", "weekly": "Weekly Report", "monthly": "Monthly Report"}
+    ws.cell(row=row, column=1, value="Report Type:").font = Font(bold=True)
+    ws.cell(row=row, column=2, value=report_type_label.get(report_meta["report_type"], "Full Report"))
+    
+    if report_meta.get("start_date") or report_meta.get("end_date"):
+        row += 1
+        ws.cell(row=row, column=1, value="Date Range:").font = Font(bold=True)
+        date_range = f"{report_meta.get('start_date', 'Start')} to {report_meta.get('end_date', 'Present')}"
+        ws.cell(row=row, column=2, value=date_range)
+    
+    if report_meta.get("phase") and report_meta.get("phase") != "all":
+        row += 1
+        ws.cell(row=row, column=1, value="Phase:").font = Font(bold=True)
+        ws.cell(row=row, column=2, value=report_meta["phase"].replace("_", " ").title())
+    
+    if report_meta.get("status") and report_meta.get("status") != "all":
+        row += 1
+        ws.cell(row=row, column=1, value="Status:").font = Font(bold=True)
+        ws.cell(row=row, column=2, value=report_meta["status"].replace("_", " ").title())
+    
+    row += 1
+    ws.cell(row=row, column=1, value="Generated:").font = Font(bold=True)
+    ws.cell(row=row, column=2, value=report_meta["generated_at"])
+    
+    row += 1
+    ws.cell(row=row, column=1, value="Total Tasks:").font = Font(bold=True)
+    ws.cell(row=row, column=2, value=str(len(tasks)))
+
+    # Summary Statistics
+    row += 2
+    leaf_tasks = [t for t in tasks if t.get("is_leaf") and not t.get("exclude_from_rollup")]
+    status_counts = {}
+    for t in leaf_tasks:
+        s = t["status"]
+        status_counts[s] = status_counts.get(s, 0) + 1
+    
+    summary_headers = ["Total Leaf", "Completed", "In Progress", "Delayed", "At Risk", "Not Started"]
+    summary_values = [
+        len(leaf_tasks),
+        status_counts.get("completed", 0),
+        status_counts.get("in_progress", 0),
+        status_counts.get("delayed", 0),
+        status_counts.get("at_risk", 0),
+        status_counts.get("not_started", 0)
+    ]
+    
+    for c, h in enumerate(summary_headers, 1):
+        cell = ws.cell(row=row, column=c, value=h)
+        cell.font = hfont
+        cell.fill = hfill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+    
+    row += 1
+    status_colors = {"Total Leaf": "0F172A", "Completed": "10B981", "In Progress": "3B82F6", "Delayed": "EF4444", "At Risk": "F59E0B", "Not Started": "94A3B8"}
+    for c, (h, v) in enumerate(zip(summary_headers, summary_values), 1):
+        cell = ws.cell(row=row, column=c, value=v)
+        cell.font = Font(bold=True, size=14)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    # Task List Header
+    row += 2
+    headers = ["ID", "Task Name", "Level", "Phase", "Status", "Progress (%)", "Start Date", "End Date", "Duration", "Risk", "Risk Notes"]
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=c, value=h)
+        cell.font = hfont
+        cell.fill = hfill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    sc_map = {"completed": "10B981", "in_progress": "3B82F6", "delayed": "EF4444", "at_risk": "F59E0B", "not_started": "94A3B8"}
+
+    for t in tasks:
+        row += 1
+        ws.cell(row=row, column=1, value=t["task_id"]).border = thin_border
+        ws.cell(row=row, column=2, value="  " * t["level"] + t["name"]).border = thin_border
+        ws.cell(row=row, column=3, value=t["level"]).border = thin_border
+        ws.cell(row=row, column=4, value=t["phase"].replace("_", " ").title()).border = thin_border
+        sc = ws.cell(row=row, column=5, value=t["status"].replace("_", " ").title())
+        color = sc_map.get(t["status"], "94A3B8")
+        sc.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        sc.font = Font(color="FFFFFF", bold=True)
+        sc.border = thin_border
+        ws.cell(row=row, column=6, value=t["progress"]).border = thin_border
+        ws.cell(row=row, column=7, value=t["start_date"]).border = thin_border
+        ws.cell(row=row, column=8, value=t["end_date"]).border = thin_border
+        ws.cell(row=row, column=9, value=t["duration"]).border = thin_border
+        ws.cell(row=row, column=10, value="YES" if t.get("risk_flagged") else "No").border = thin_border
+        ws.cell(row=row, column=11, value=t.get("risk_notes", "")).border = thin_border
+
+    # Adjust column widths
+    for col in ws.columns:
+        ml = max(len(str(c.value or "")) for c in col)
+        ws.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+
+    # At Risk Items Sheet
+    ws2 = wb.create_sheet("At Risk Items")
+    rh = ["ID", "Task Name", "Progress (%)", "End Date", "Risk Notes"]
+    for c, h in enumerate(rh, 1):
+        cell = ws2.cell(row=1, column=c, value=h)
+        cell.font = hfont
+        cell.fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+        cell.border = thin_border
+    for r, t in enumerate([t for t in tasks if t.get("risk_flagged")], 2):
+        ws2.cell(row=r, column=1, value=t["task_id"]).border = thin_border
+        ws2.cell(row=r, column=2, value=t["name"]).border = thin_border
+        ws2.cell(row=r, column=3, value=t["progress"]).border = thin_border
+        ws2.cell(row=r, column=4, value=t["end_date"]).border = thin_border
+        ws2.cell(row=r, column=5, value=t.get("risk_notes", "")).border = thin_border
+
+    for col in ws2.columns:
+        ml = max(len(str(c.value or "")) for c in col)
+        ws2.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+
+    # Delayed Items Sheet
+    ws3 = wb.create_sheet("Delayed Items")
+    for c, h in enumerate(["ID", "Task Name", "Progress (%)", "End Date"], 1):
+        cell = ws3.cell(row=1, column=c, value=h)
+        cell.font = hfont
+        cell.fill = PatternFill(start_color="EF4444", end_color="EF4444", fill_type="solid")
+        cell.border = thin_border
+    for r, t in enumerate([t for t in tasks if t["status"] == "delayed"], 2):
+        ws3.cell(row=r, column=1, value=t["task_id"]).border = thin_border
+        ws3.cell(row=r, column=2, value=t["name"]).border = thin_border
+        ws3.cell(row=r, column=3, value=t["progress"]).border = thin_border
+        ws3.cell(row=r, column=4, value=t["end_date"]).border = thin_border
+
+    for col in ws3.columns:
+        ml = max(len(str(c.value or "")) for c in col)
+        ws3.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+
+    # Update History Sheet (if requested)
+    if history_data:
+        ws4 = wb.create_sheet("Update History")
+        hist_headers = ["Timestamp", "Task ID", "Task Name", "Action", "Field", "Old Value", "New Value", "Notes"]
+        for c, h in enumerate(hist_headers, 1):
+            cell = ws4.cell(row=1, column=c, value=h)
+            cell.font = hfont
+            cell.fill = PatternFill(start_color="6366F1", end_color="6366F1", fill_type="solid")
+            cell.border = thin_border
+        
+        for r, h in enumerate(history_data, 2):
+            ws4.cell(row=r, column=1, value=h.get("timestamp", "")).border = thin_border
+            ws4.cell(row=r, column=2, value=h.get("task_id", "")).border = thin_border
+            ws4.cell(row=r, column=3, value=h.get("task_name", "")).border = thin_border
+            ws4.cell(row=r, column=4, value=h.get("action", "").replace("_", " ").title()).border = thin_border
+            ws4.cell(row=r, column=5, value=h.get("field", "")).border = thin_border
+            ws4.cell(row=r, column=6, value=h.get("old_value", "")).border = thin_border
+            ws4.cell(row=r, column=7, value=h.get("new_value", "")).border = thin_border
+            ws4.cell(row=r, column=8, value=h.get("notes", "")).border = thin_border
+
+        for col in ws4.columns:
+            ml = max(len(str(c.value or "")) for c in col)
+            ws4.column_dimensions[col[0].column_letter].width = min(ml + 2, 55)
+
+    # Generate filename based on report type
+    report_type = report_meta.get("report_type", "full")
+    date_suffix = datetime.now().strftime('%Y%m%d')
+    if report_meta.get("start_date"):
+        date_suffix = report_meta["start_date"].replace("-", "")
+    
+    filename = f"IIMC_{report_type.title()}_Report_{date_suffix}.xlsx"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
 def generate_pdf(tasks):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
