@@ -33,7 +33,11 @@ Build a progress tracking app for IIMC Amravati construction project (138 items 
 - [x] Reports page with Excel/PDF download
 - [x] Risk assessment dialog per task
 - [x] Date editing dialog per task
-- [x] Auto-rollup from leaf → parent → grandparent → root
+- [x] Auto-rollup from leaf to parent to grandparent to root
+- [x] **Quick Update page** - Mobile-optimized card-based task update with slider, notes, and recent updates section
+- [x] **Update history tracking** - Every progress, date, and risk change logged with timestamp and notes
+- [x] **History view** - Accessible from both Quick Update dialog and Task tree (history button per task)
+- [x] **Update notes** - Optional notes field on every progress update for audit trail
 
 ## Prioritized Backlog
 ### P0 (Done)
