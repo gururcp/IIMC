@@ -187,6 +187,7 @@ async def update_risk(task_id: int, update: RiskUpdate):
     task = await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
     if not task:
         raise HTTPException(404, "Task not found")
+    old_risk = task.get("risk_flagged", False)
     status = task["status"]
     if update.risk_flagged and status not in ["completed"]:
         status = "at_risk"
@@ -196,6 +197,7 @@ async def update_risk(task_id: int, update: RiskUpdate):
         {"task_id": task_id},
         {"$set": {"risk_flagged": update.risk_flagged, "risk_notes": update.risk_notes or "", "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
+    await log_history(task_id, "risk_change", "risk_flagged", old_risk, update.risk_flagged, update.update_notes or update.risk_notes or "")
     if task.get("parent_task_id") is not None:
         await rollup_progress(task["parent_task_id"])
     return await db.tasks.find_one({"task_id": task_id}, {"_id": 0})
