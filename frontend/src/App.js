@@ -1,17 +1,19 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
-import { LayoutDashboard, ListTree, BarChart3, FileText, HardHat, Menu, X } from "lucide-react";
+import { LayoutDashboard, ListTree, BarChart3, FileText, HardHat, Menu, X, Smartphone } from "lucide-react";
 import { useState } from "react";
 import Dashboard from "@/pages/Dashboard";
 import TaskTree from "@/pages/TaskTree";
 import GanttView from "@/pages/GanttView";
 import Reports from "@/pages/Reports";
+import QuickUpdate from "@/pages/QuickUpdate";
 
 const navLinks = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/tasks", icon: ListTree, label: "Tasks" },
   { to: "/gantt", icon: BarChart3, label: "Gantt Chart" },
+  { to: "/update", icon: Smartphone, label: "Quick Update" },
   { to: "/reports", icon: FileText, label: "Reports" },
 ];
 
