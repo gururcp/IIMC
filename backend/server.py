@@ -261,6 +261,23 @@ async def get_dashboard_stats():
     }
 
 
+@api_router.get("/tasks/{task_id}/history")
+async def get_task_history(task_id: int):
+    history = await db.task_history.find({"task_id": task_id}, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    return history
+
+
+@api_router.get("/history/recent")
+async def get_recent_history(limit: int = Query(30)):
+    history = await db.task_history.find({}, {"_id": 0}).sort("timestamp", -1).to_list(min(limit, 100))
+    task_ids = list(set(h["task_id"] for h in history))
+    tasks = await db.tasks.find({"task_id": {"$in": task_ids}}, {"_id": 0, "task_id": 1, "name": 1}).to_list(None)
+    name_map = {t["task_id"]: t["name"] for t in tasks}
+    for h in history:
+        h["task_name"] = name_map.get(h["task_id"], f"Task #{h['task_id']}")
+    return history
+
+
 @api_router.get("/reports/generate")
 async def generate_report(format: str = Query("excel")):
     all_tasks = await db.tasks.find({}, {"_id": 0}).sort("task_id", 1).to_list(None)
