@@ -25,17 +25,32 @@ logger = logging.getLogger(__name__)
 
 class ProgressUpdate(BaseModel):
     progress: float
+    update_notes: Optional[str] = ""
 
 class DateUpdate(BaseModel):
     start_date: str
     end_date: str
+    update_notes: Optional[str] = ""
 
 class RiskUpdate(BaseModel):
     risk_flagged: bool
     risk_notes: Optional[str] = ""
+    update_notes: Optional[str] = ""
 
 class NotesUpdate(BaseModel):
     notes: str
+
+
+async def log_history(task_id: int, action: str, field: str, old_value, new_value, notes: str = ""):
+    await db.task_history.insert_one({
+        "task_id": task_id,
+        "action": action,
+        "field": field,
+        "old_value": str(old_value),
+        "new_value": str(new_value),
+        "notes": notes,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
 
 
 @app.on_event("startup")
