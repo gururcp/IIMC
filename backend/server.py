@@ -279,11 +279,83 @@ async def get_recent_history(limit: int = Query(30)):
 
 
 @api_router.get("/reports/generate")
-async def generate_report(format: str = Query("excel")):
+async def generate_report(
+    format: str = Query("excel"),
+    report_type: str = Query("full"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    phase: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    include_history: bool = Query(False)
+):
+    """
+    Generate a report with optional filters.
+    report_type: full, daily, weekly, monthly
+    start_date/end_date: Filter tasks by date range (YYYY-MM-DD)
+    phase: Filter by phase (pre_construction, admin_academic, etc.)
+    status: Filter by status (completed, in_progress, delayed, at_risk, not_started)
+    include_history: Include recent update history in report
+    """
     all_tasks = await db.tasks.find({}, {"_id": 0}).sort("task_id", 1).to_list(None)
+    
+    # Apply phase filter
+    if phase and phase != "all":
+        all_tasks = [t for t in all_tasks if t.get("phase") == phase]
+    
+    # Apply status filter
+    if status and status != "all":
+        all_tasks = [t for t in all_tasks if t.get("status") == status]
+    
+    # Apply date range filter (tasks active within the range)
+    if start_date or end_date:
+        filtered_tasks = []
+        for t in all_tasks:
+            task_start = t.get("start_date", "1900-01-01")
+            task_end = t.get("end_date", "2099-12-31")
+            
+            # Task overlaps with the requested range
+            range_start = start_date or "1900-01-01"
+            range_end = end_date or "2099-12-31"
+            
+            # Check if task period overlaps with filter period
+            if task_start <= range_end and task_end >= range_start:
+                filtered_tasks.append(t)
+        all_tasks = filtered_tasks
+    
+    # Get history if requested
+    history_data = []
+    if include_history:
+        # Get history for the date range
+        history_query = {}
+        if start_date:
+            history_query["timestamp"] = {"$gte": start_date}
+        if end_date:
+            if "timestamp" in history_query:
+                history_query["timestamp"]["$lte"] = end_date + "T23:59:59"
+            else:
+                history_query["timestamp"] = {"$lte": end_date + "T23:59:59"}
+        
+        history_data = await db.task_history.find(history_query, {"_id": 0}).sort("timestamp", -1).to_list(500)
+        
+        # Add task names to history
+        task_ids = list(set(h["task_id"] for h in history_data))
+        tasks_map = {t["task_id"]: t["name"] for t in await db.tasks.find({"task_id": {"$in": task_ids}}, {"_id": 0, "task_id": 1, "name": 1}).to_list(None)}
+        for h in history_data:
+            h["task_name"] = tasks_map.get(h["task_id"], f"Task #{h['task_id']}")
+    
+    # Generate report metadata
+    report_meta = {
+        "report_type": report_type,
+        "start_date": start_date,
+        "end_date": end_date,
+        "phase": phase,
+        "status": status,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    }
+    
     if format == "excel":
-        return generate_excel(all_tasks)
-    return generate_pdf(all_tasks)
+        return generate_excel_enhanced(all_tasks, history_data, report_meta)
+    return generate_pdf_enhanced(all_tasks, history_data, report_meta)
 
 
 def generate_excel(tasks):
