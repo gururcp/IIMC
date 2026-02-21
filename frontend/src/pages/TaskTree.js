@@ -320,8 +320,8 @@ export default function TaskTree() {
 
       <Dialog open={!!dateDialog} onOpenChange={() => setDateDialog(null)}>
         <DialogContent data-testid="date-dialog">
-          <DialogHeader><DialogTitle className="font-heading">Edit Dates - #{dateDialog?.task_id}</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-600 mb-3">{dateDialog?.name}</p>
+          <DialogHeader><DialogTitle className="font-heading">Edit Dates - #{dateDialog?.task_id}</DialogTitle>
+          <DialogDescription className="text-sm text-slate-600">{dateDialog?.name}</DialogDescription></DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1 block">Start Date</label>
