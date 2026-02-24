@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { LayoutDashboard, ListTree, BarChart3, FileText, HardHat, Menu, X, Smartphone } from "lucide-react";
 import { useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import Dashboard from "@/pages/Dashboard";
 import TaskTree from "@/pages/TaskTree";
 import GanttView from "@/pages/GanttView";
@@ -92,6 +93,7 @@ function App() {
       </div>
       <FloatingUpdateButton />
       <Toaster position="top-right" />
+      <Analytics />
     </BrowserRouter>
   );
 }
